@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import api from "../api";
-import { Editor } from "@tinymce/tinymce-react";
 import { useParams, useNavigate } from "react-router-dom";
+import RichTextEditor from "./RichTextEditor";
+import { portableRichTextHtml } from "../utils/portableRichText";
 
 const API_BASE = "/api";
 
@@ -20,7 +21,13 @@ const EditBlog = () => {
 
   const [websiteId, setWebsiteId] = useState("");
   const [websites, setWebsites] = useState([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState([]);
   const [images, setImages] = useState([]);
+  const [status, setStatus] = useState("draft");
+  const [featuredImage, setFeaturedImage] = useState("");
+  const [featuredImageAlt, setFeaturedImageAlt] = useState("");
+  const [uploadingFeatured, setUploadingFeatured] = useState(false);
   // Fetch websites
   useEffect(() => {
     api
@@ -28,6 +35,17 @@ const EditBlog = () => {
       .then((res) => setWebsites(res.data.websites))
       .catch((err) => console.error(err));
   }, []);
+
+  // Categories are scoped per website. Fetch once the blog's website is known
+  // (no status filter, so an already-assigned but now-inactive category still
+  // shows correctly when editing this blog).
+  useEffect(() => {
+    if (!websiteId) return;
+    api
+      .get(`${API_BASE}/blog-categories`, { params: { websiteId } })
+      .then((res) => setCategories(res.data || []))
+      .catch((err) => console.error(err));
+  }, [websiteId]);
 
   // Fetch blog details
   useEffect(() => {
@@ -45,7 +63,11 @@ const EditBlog = () => {
       setMetaDescription(b.metaDescription);
       setMetaKeyword(b.metaKeyword);
       setWebsiteId(b.websiteId?._id || b.websiteId);
+      setCategoryId(b.categoryId?._id || b.categoryId || "");
       setImages(b.images || []);
+      setStatus(b.status || "draft");
+      setFeaturedImage(b.featuredImage || "");
+      setFeaturedImageAlt(b.featuredImageAlt || "");
 
       setLoading(false);
     })
@@ -80,22 +102,53 @@ const EditBlog = () => {
     setImages(images.filter((i) => i !== img));
   };
 
+  // Upload (or replace) the blog card / featured image
+  const handleFeaturedImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("image", file);
+    setUploadingFeatured(true);
+    try {
+      const res = await api.post(`${API_BASE}/blogs/upload-image`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setFeaturedImage(res.data.url);
+    } catch (err) {
+      console.error(err);
+      alert("Featured image upload failed");
+    } finally {
+      setUploadingFeatured(false);
+    }
+  };
+
+  const uploadEditorImage = async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const res = await api.post(`${API_BASE}/blogs/upload-image`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+    return res.data.url;
+  };
+
   // Update blog
   const handleUpdate = async () => {
-    if (!title || !content || !websiteId) {
-      alert("Please fill all required fields");
+    if (!title || !content || !websiteId || !categoryId) {
+      alert("Please fill all required fields, including category");
       return;
     }
 
     const payload = {
       title,
       slug,
-      content,
+      content: portableRichTextHtml(content),
       metaTitle,
       metaDescription,
       metaKeyword,
       websiteId,
+      categoryId,
       images,
+      status,
+      featuredImage,
+      featuredImageAlt,
     };
 
     try {
@@ -154,7 +207,7 @@ const EditBlog = () => {
       <select
         className="form-control mb-3"
         value={websiteId}
-        onChange={(e) => setWebsiteId(e.target.value)}
+        onChange={(e) => { setWebsiteId(e.target.value); setCategoryId(""); }}
       >
         <option value="">Choose Website</option>
          {websites.map((w) => (
@@ -163,6 +216,45 @@ const EditBlog = () => {
           </option>
         ))}
       </select>
+
+      {/* Category Select */}
+      <label>Category *</label>
+      <select
+        className="form-control mb-3"
+        value={categoryId}
+        onChange={(e) => setCategoryId(e.target.value)}
+      >
+        <option value="">Choose Category</option>
+        {categories.map((c) => (
+          <option key={c._id} value={c._id}>
+            {c.name}{c.status === "inactive" ? " (inactive)" : ""}
+          </option>
+        ))}
+      </select>
+
+      {/* Status */}
+      <label>Status</label>
+      <select
+        className="form-control mb-3"
+        value={status}
+        onChange={(e) => setStatus(e.target.value)}
+      >
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+
+      {/* Featured / Blog Card Image */}
+      <label>Blog Card Image</label>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "15px" }}>
+        {featuredImage && <img src={featuredImage} alt={featuredImageAlt || "Blog card preview"} width="160" style={{ borderRadius: 5 }} />}
+        <input type="file" accept="image/*" onChange={handleFeaturedImageUpload} disabled={uploadingFeatured} />
+      </div>
+      <label>Image ALT Text</label>
+      <input
+        className="form-control mb-3"
+        value={featuredImageAlt}
+        onChange={(e) => setFeaturedImageAlt(e.target.value)}
+      />
 
       {/* Meta Title */}
       <label>Meta Title</label>
@@ -231,32 +323,7 @@ const EditBlog = () => {
 
       {/* Editor */}
       <label>Blog Content *</label>
-      <Editor
-        apiKey="e4yuc3ytrhl38jxs25ek9zh65kuk0llgp0nmj8olmzhocpnq"
-        value={content}
-        init={{
-          height: 500,
-          menubar: true,
-          plugins: [
-            "link",
-            "lists",
-            "image",
-            "table",
-            "code",
-            "autolink",
-            "preview",
-            "anchor",
-            "fullscreen",
-            "searchreplace",
-            "wordcount",
-          ],
-          toolbar:
-            "undo redo | blocks | bold italic underline | " +
-            "alignleft aligncenter alignright alignjustify | " +
-            "bullist numlist outdent indent | link image table | code preview fullscreen",
-        }}
-        onEditorChange={(newContent) => setContent(newContent)}
-      />
+      <RichTextEditor value={content} onChange={setContent} uploadImage={uploadEditorImage} />
 
       {/* Buttons */}
       <div className="d-flex gap-3 mt-4">

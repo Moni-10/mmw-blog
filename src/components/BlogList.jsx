@@ -156,6 +156,7 @@ const BlogList = () => {
             <th>Image</th>
             <th>Title</th>
             <th>Slug</th>
+            <th>Category</th>
             <th>Website</th>
             <th>Status</th>
             <th>Created</th>
@@ -166,7 +167,7 @@ const BlogList = () => {
         <tbody>
           {filteredBlogs.length === 0 ? (
             <tr>
-              <td colSpan="7" className="text-center">No blogs found</td>
+              <td colSpan="8" className="text-center">No blogs found</td>
             </tr>
           ) : (
             filteredBlogs.map((blog) => (
@@ -174,6 +175,7 @@ const BlogList = () => {
                 <td>{blog.featuredImage ? <img className="blog-library-thumb" src={blog.featuredImage} alt={blog.featuredImageAlt || blog.title} /> : <span className="no-blog-image">No image</span>}</td>
                 <td>{blog.title}</td>
                 <td>{blog.slug}</td>
+                <td>{blog.category?.name || "—"}</td>
                 <td>{blog.websiteId?.name || websites.find((w) => w._id === blog.websiteId)?.name}</td>
                 <td>
                   <span className={`badge ${blog.status === "published" ? "bg-success" : "bg-secondary"}`}>

@@ -10,7 +10,10 @@ import BlogEditor from "./components/BlogEditor";
 import EditBlog from "./components/EditBlog";
 import BlogList from "./components/BlogList";
 import WebsiteManager from "./components/WebsiteManager";
-import { SEOManager, BlogCategoryManager, ProductCategoryManager, Profile } from "./components/PanelManagers";
+import SEOManager from "./components/SEOManager";
+import BlogCategoryManager from "./components/BlogCategoryManager";
+import ProductCategoryManager from "./components/ProductCategoryManager";
+import Profile from "./components/Profile";
 import "./App.css";
 
 const Guard = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;
@@ -27,15 +30,15 @@ function AppContent() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Guard><Home /></Guard>} />
             <Route path="/websites" element={<Guard><WebsiteManager /></Guard>} />
+            <Route path="/seo" element={<Guard><SEOManager /></Guard>} />
             <Route path="/products" element={<Guard><ProductsList /></Guard>} />
             <Route path="/add-product" element={<Guard><ProductForm /></Guard>} />
-            <Route path="/seo" element={<Guard><SEOManager /></Guard>} />
-            <Route path="/blog-categories" element={<Guard><BlogCategoryManager /></Guard>} />
             <Route path="/product-categories" element={<Guard><ProductCategoryManager /></Guard>} />
-            <Route path="/profile" element={<Guard><Profile /></Guard>} />
             <Route path="/add-blog" element={<Guard><BlogEditor /></Guard>} />
             <Route path="/edit-blog" element={<Guard><BlogList /></Guard>} />
             <Route path="/edit-blog/:id" element={<Guard><EditBlog /></Guard>} />
+            <Route path="/blog-categories" element={<Guard><BlogCategoryManager /></Guard>} />
+            <Route path="/profile" element={<Guard><Profile /></Guard>} />
           </Routes>
         </main>
       </div>
